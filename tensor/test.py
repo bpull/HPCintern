@@ -149,62 +149,67 @@ def bias_variable(shape):
   initial = tf.constant(0.1, shape=shape)
   return tf.Variable(initial)
 
+def init_weights(shape):
+    return tf.Variable(tf.random_normal(shape, stddev=0.01))
+
 credit = read_data_sets()
 credit.train.set_examples(20060)
 credit.test.set_examples(9940)
-sess = tf.InteractiveSession()
 
-print "Data Successfully Read In"
-print "Starting to learn Neural Network Structure"
+def model(X, w_h, w_h2, w_o, p_keep_input, p_keep_hidden):
+    X = tf.nn.dropout(X, p_keep_input)
+    h = tf.nn.relu(tf.matmul(X, w_h))
 
-x = tf.placeholder(tf.float32, [None, 28])
+    h = tf.nn.dropout(h, p_keep_hidden)
+    h2 = tf.nn.relu(tf.matmul(h, w_h2))
 
-W1 = weight_variable([28, 50])
-b1 = bias_variable([50])
+    h2 = tf.nn.dropout(h2, p_keep_hidden)
 
-x_1 = tf.nn.relu(tf.matmul(x, W1) + b1)
+    return tf.matmul(h2, w_o)
 
-W2 = weight_variable([50, 50])
-b2 = bias_variable([50])
+trX, trY, teX, teY = credit.train.input, credit.train.labels, credit.test.input, credit.test.labels
 
-x_2 = tf.nn.relu(tf.matmul(x_1, W2)+b2)
+X = tf.placeholder("float", [None, 28])
+Y = tf.placeholder("float", [None, 2])
 
-W3 = weight_variable([50, 2])
-b3 = bias_variable([2])
+w_h = init_weights([28, 50])
+w_h2 = init_weights([50, 50])
+w_o = init_weights([50, 2])
 
-y = tf.nn.softmax(tf.matmul(x_2, W3) + b3)
-y_ = tf.placeholder(tf.float32, [None, 2])
+p_keep_input = tf.placeholder("float")
+p_keep_hidden = tf.placeholder("float")
+py_x = model(X, w_h, w_h2, w_o, p_keep_input, p_keep_hidden)
 
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_)) # compute costs
-#cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y), reduction_indices=[1]))
-train_step = tf.train.AdamOptimizer(1e-12).minimize(cross_entropy)
-correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-sess.run(tf.initialize_all_variables())
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(py_x, Y))
+train_op = tf.train.RMSPropOptimizer(0.001, 0.9).minimize(cost)
+predict_op = tf.argmax(py_x, 1)
 
 
-print "Teaching the Network"
+    for i in range(100):
+        for start, end in zip(range(0, len(trX), 128), range(128, len(trX), 128)):
+            sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end],
+                                          p_keep_input: 0.8, p_keep_hidden: 0.5})
+        print(i, np.mean(np.argmax(teY, axis=1) ==
+                         sess.run(predict_op, feed_dict={X: teX, Y: teY,
+                                                         p_keep_input: 1.0,
+                                                         p_keep_hidden: 1.0})))
 
-#i think everything up is right?
-#not sure how to run on our data. check below
-# for i in range(1000):
-#   batch = credit.train.next_batch(200)
-#   sess.run(train_step, feed_dict={x: batch[0], y_: batch[1]})
-for i in range(500):
-    batch_xs, batch_ys = credit.train.next_batch(1)
-    #batch_ys = np.reshape(batch_ys, [-1, 2])
-    if i%100 == 0:
-        train_accuracy = accuracy.eval(feed_dict={
-            x:batch_xs, y_: batch_ys})
-        acc = sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels})
-        print("step %d, batch training accuracy %g - %g"%(i, train_accuracy, acc))
-        trainacc = sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
-        print("step %d, whole training accuracy %g"%(i, trainacc))
 
-    train_step.run(feed_dict={x: batch_xs, y_: batch_ys})
-print sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
+# Launch the graph in a session
+with tf.Session() as sess:
+    # you need to initialize all variables
+    tf.initialize_all_variables().run()
+    for i in range(1000):
+        batch_xs, batch_ys = credit.train.next_batch(100)
+        #batch_ys = np.reshape(batch_ys, [-1, 2])
+        if i%100 == 0:
+            sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
+            print("step %d, whole training accuracy %g"%(i, trainacc))
 
-correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-print sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels})
-sess.close()
+        train_step.run(feed_dict={x: batch_xs, y_: batch_ys})
+        print sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
+
+    correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    print sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels})
+    sess.close()
