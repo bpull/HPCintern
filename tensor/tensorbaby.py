@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 import tensorflow as tf
 import numpy as np
 import csv
@@ -7,7 +8,7 @@ from six.moves import urllib
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import os
 import tempfile
-
+import sys
 
 class DataSet(object):
 
@@ -60,7 +61,7 @@ class DataSet(object):
 
 
 def read_data_sets(dtype=tf.float32):
-    print "Begin Reading Data"
+    # print "Begin Reading Data"
     class DataSets(object):
         pass
     data_sets = DataSets()
@@ -80,7 +81,7 @@ def read_data_sets(dtype=tf.float32):
     limit_bal,sex,education1,education2,education3,education4,marriage1,marriage2,marriage3,age,pay_1,pay_2,pay_3,pay_4,pay_5,pay_6, bill_amt1,bill_amt2,bill_amt3,bill_amt4,bill_amt5,bill_amt6,pay_amt1,pay_amt2,pay_amt3,pay_amt4,pay_amt5,pay_amt6,default = tf.decode_csv(value, record_defaults=default_values)
     features = tf.pack([limit_bal,sex,education1,education2,education3,education4,marriage1,marriage2,marriage3,age,pay_1,pay_2,pay_3,pay_4,pay_5,pay_6, bill_amt1,bill_amt2,bill_amt3,bill_amt4,bill_amt5,bill_amt6,pay_amt1,pay_amt2,pay_amt3,pay_amt4,pay_amt5,pay_amt6])
 
-    print "Starting train data"
+    # print "Starting train data"
 
     with tf.Session() as sess:
     # Start populating the filename queue.
@@ -110,7 +111,7 @@ def read_data_sets(dtype=tf.float32):
     limit_bal,sex,education1,education2,education3,education4,marriage1,marriage2,marriage3,age,pay_1,pay_2,pay_3,pay_4,pay_5,pay_6, bill_amt1,bill_amt2,bill_amt3,bill_amt4,bill_amt5,bill_amt6,pay_amt1,pay_amt2,pay_amt3,pay_amt4,pay_amt5,pay_amt6,default = tf.decode_csv(value, record_defaults=default_values)
     features = tf.pack([limit_bal,sex,education1,education2,education3,education4,marriage1,marriage2,marriage3,age,pay_1,pay_2,pay_3,pay_4,pay_5,pay_6, bill_amt1,bill_amt2,bill_amt3,bill_amt4,bill_amt5,bill_amt6,pay_amt1,pay_amt2,pay_amt3,pay_amt4,pay_amt5,pay_amt6])
 
-    print "Starting test data"
+    # print "Starting test data"
 
     with tf.Session() as sess:
     # Start populating the filename queue.
@@ -149,27 +150,30 @@ def bias_variable(shape):
   initial = tf.constant(0.1, shape=shape)
   return tf.Variable(initial)
 
+weight1 = int(sys.argv[1])
+weight2 = int(sys.argv[2])
+step    = float(sys.argv[3])
 credit = read_data_sets()
 credit.train.set_examples(20060)
 credit.test.set_examples(9940)
 sess = tf.InteractiveSession()
 
-print "Data Successfully Read In"
-print "Starting to learn Neural Network Structure"
+# print "Data Successfully Read In"
+# print "Starting to learn Neural Network Structure"
 
 x = tf.placeholder(tf.float32, [None, 28])
 
-W1 = weight_variable([28, 50])
-b1 = bias_variable([50])
+W1 = weight_variable([28, weight1])
+b1 = bias_variable([weight1])
 
 x_1 = tf.nn.relu(tf.matmul(x, W1) + b1)
 
-W2 = weight_variable([50, 50])
-b2 = bias_variable([50])
+W2 = weight_variable([weight1, weight2])
+b2 = bias_variable([weight2])
 
 x_2 = tf.nn.relu(tf.matmul(x_1, W2)+b2)
 
-W3 = weight_variable([50, 2])
+W3 = weight_variable([weight2, 2])
 b3 = bias_variable([2])
 
 y = tf.nn.softmax(tf.matmul(x_2, W3) + b3)
@@ -177,34 +181,33 @@ y_ = tf.placeholder(tf.float32, [None, 2])
 
 cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y, y_)) # compute costs
 #cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y), reduction_indices=[1]))
-train_step = tf.train.AdamOptimizer(1e-12).minimize(cross_entropy)
+train_step = tf.train.AdamOptimizer(step).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 sess.run(tf.initialize_all_variables())
 
 
-print "Teaching the Network"
+# print "Teaching the Network"
 
 #i think everything up is right?
 #not sure how to run on our data. check below
 # for i in range(1000):
 #   batch = credit.train.next_batch(200)
 #   sess.run(train_step, feed_dict={x: batch[0], y_: batch[1]})
-for i in range(500):
-    batch_xs, batch_ys = credit.train.next_batch(1)
+for i in range(10000):
+    batch_xs, batch_ys = credit.train.next_batch(150)
     #batch_ys = np.reshape(batch_ys, [-1, 2])
-    if i%100 == 0:
-        train_accuracy = accuracy.eval(feed_dict={
-            x:batch_xs, y_: batch_ys})
-        acc = sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels})
-        print("step %d, batch training accuracy %g - %g"%(i, train_accuracy, acc))
-        trainacc = sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
-        print("step %d, whole training accuracy %g"%(i, trainacc))
+    # if i%500 == 0:
+    #     train_accuracy = accuracy.eval(feed_dict={
+    #         x:batch_xs, y_: batch_ys})
+    #     acc = sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels})
+    #     trainacc = sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
+    #     print("step %d, current train %g - current test %g"%(i, trainacc, acc))
+    sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
 
-    train_step.run(feed_dict={x: batch_xs, y_: batch_ys})
-print sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
+# print sess.run(accuracy, feed_dict={x: credit.train.input, y_: credit.train.labels})
 
 correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-print sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels})
+print (sess.run(accuracy, feed_dict={x: credit.test.input, y_: credit.test.labels}), end='')
 sess.close()
