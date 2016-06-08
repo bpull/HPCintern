@@ -1,9 +1,9 @@
 import csv
 from subprocess import Popen, PIPE, STDOUT
 
-weight1 = [50, 100, 200, 300, 400, 500]
-weight2 = [50, 100, 200, 300, 400, 500]
-step = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+weight1 = [50]#, 100, 200, 300, 400, 500]
+weight2 = [50]#, 100, 200, 300, 400, 500]
+step = [1e-1]#, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
 
 best_w1 = 50
 best_w2 = 50
@@ -29,4 +29,5 @@ with open('out.csv', 'r') as f:
             best_w2 = row[2]
             best_st = row[3]
 
-print("Best network of 2 layers have %s neurons first and %s neurons second with learning rate %s"%(best_w1, best_w2, best_st))
+with open('final.txt','w') as f:
+    f.write("Best network of 2 layers have %s neurons first and %s neurons second with learning rate %s"%(best_w1, best_w2, best_st))
