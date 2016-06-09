@@ -1,0 +1,1 @@
+Best network of 2 layers have 50 neurons first and 50 neurons second with learning rate 0.1
