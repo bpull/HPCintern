@@ -1,22 +1,37 @@
-# We do not automatically build the recording agent, which requires SDL. To build it, run
+# Modified from the sharedLibraryInterface's makefile.
+# Video recording requires SDL. If you do not have SDL installed, you will not be able to
+# compile this example.
 #
-# > make recordingAgent
-all: sharedLibraryAgent rlglueAgent fifoAgent
+# > make recordingAgent 
 
-sharedLibraryAgent: 
-	make -f Makefile.sharedlibrary
+USE_SDL := 1
 
-rlglueAgent:
-	make -f Makefile.rlglue
+# This will likely need to be changed to suit your installation.
+ALE := ../..
 
-fifoAgent: 
-	make -f Makefile.fifo
+FLAGS := -I$(ALE)/src -I$(ALE)/src/controllers -I$(ALE)/src/os_dependent -I$(ALE)/src/environment -I$(ALE)/src/external -L$(ALE)
+CXX := g++
+FILE := videoRecordingExample
+LDFLAGS := -lale -lz
 
-recordingAgent: 
-	make -f Makefile.recording
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    FLAGS += -Wl,-rpath=$(ALE)
+endif
+ifeq ($(UNAME_S),Darwin)
+    FLAGS += -framework Cocoa
+endif
+
+ifeq ($(strip $(USE_SDL)), 1)
+  DEFINES += -D__USE_SDL -DSOUND_SUPPORT
+  FLAGS += $(shell sdl-config --cflags)
+  LDFLAGS += $(shell sdl-config --libs)
+endif
+
+all: videoRecordingExample
+
+videoRecordingExample:
+	$(CXX) $(DEFINES) $(FLAGS) $(FILE).cpp $(LDFLAGS) -o $(FILE)
 
 clean:
-	make -f Makefile.rlglue clean
-	make -f Makefile.sharedlibrary clean
-	make -f Makefile.fifo clean
-	make -f Makefile.recording clean
+	rm -rf videoRecordingExample *.o
